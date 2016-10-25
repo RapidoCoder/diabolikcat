@@ -12,41 +12,44 @@ import twitter4j.TwitterException;
 import twitter4j.TwitterFactory;
 
 public class Twitter4jApi {
-	Query query;
-	QueryResult result;
+  Query query;
+  QueryResult result;
 
-	/**
-	 * use to get twitter instance
-	 * 
-	 * @return Twiiter Instance
-	 */
-	public Twitter getTwitterInstance() {
+  /**
+   * use to get twitter instance
+   * 
+   * @return Twiiter Instance
+   */
+  public Twitter getTwitterInstance() {
 
-		Twitter twitter = new TwitterFactory().getInstance();
-		return twitter;
-	}
-	/**
-	 * use to get all tweets for search term
-	 * @param twitter
-	 * @param search_term
-	 * @return arraylist of tweets
-	 * @throws TwitterException 
-	 */
+    Twitter twitter = new TwitterFactory().getInstance();
+    return twitter;
+  }
 
-	public ArrayList<Map<String, Object>> getTweetsList(Twitter twitter, String search_term) throws TwitterException {
-		ArrayList<Map<String, Object>> tweetsList = new ArrayList<Map<String, Object>>();
-		query = new Query(search_term);
-			result = twitter.search(query);
-			for (Status status : result.getTweets()) {
-				Map<String, Object> tweet = new HashMap<String, Object>();
-				tweet.put("screen_name", status.getUser().getScreenName());
-				tweet.put("text", status.getText());
-				tweet.put("retweeted_count", status.getRetweetCount());
-				tweet.put("followers_count", status.getUser().getFollowersCount());
-			   tweetsList.add(tweet);
-			}
-		twitter = null;	
-		return tweetsList;
-	}
+  /**
+   * use to get all tweets for search term
+   * 
+   * @param twitter
+   * @param search_term
+   * @return arraylist of tweets
+   * @throws TwitterException
+   */
+
+  public ArrayList<Map<String, Object>> getTweetsList(Twitter twitter, String search_term) throws TwitterException {
+    ArrayList<Map<String, Object>> tweetsList = new ArrayList<Map<String, Object>>();
+    query = new Query(search_term);
+    result = twitter.search(query);
+    for (Status status : result.getTweets()) {
+    Map<String, Object> tweet = new HashMap<String, Object>();
+    tweet.put("screen_name", status.getUser().getScreenName());
+    tweet.put("text", status.getText());
+    tweet.put("retweeted_count", status.getRetweetCount());
+    tweet.put("followers_count", status.getUser().getFollowersCount());
+    tweet.put("tweet_id", status.getId());
+    tweetsList.add(tweet);
+    }
+    twitter = null;
+    return tweetsList;
+  }
 
 }
