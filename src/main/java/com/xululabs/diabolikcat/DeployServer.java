@@ -3,6 +3,7 @@ package com.xululabs.diabolikcat;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
@@ -30,12 +31,16 @@ public class DeployServer extends AbstractVerticle {
   String host;
   int port;
   Twitter4jApi twiiter4jApi;
+  int retweet_total;
+  int followers_total;
 
   public DeployServer() {
 
     this.host = "localhost";
     this.port = 8181;
     this.twiiter4jApi = new Twitter4jApi();
+    this.retweet_total = 20;
+    this.followers_total = 30;
   }
 
   /**
@@ -59,11 +64,13 @@ public class DeployServer extends AbstractVerticle {
    * For Registering different Routes
    */
   public void registerHandlers() {
-    router.get("/").blockingHandler(this::welcomeRoute);
-    router.route(HttpMethod.POST, "/searchTweets").blockingHandler(this::searchTweets);
+    router.route(HttpMethod.POST,"/").blockingHandler(this::welcomeRoute);
+    router.route(HttpMethod.POST,"/searchTweets").blockingHandler(this::searchTweets);
     router.route(HttpMethod.POST, "/bestUsers").blockingHandler(this::bestUsers);
     router.route(HttpMethod.POST, "/bestTweets").blockingHandler(this::bestTweets);
-    router.route(HttpMethod.POST, "/retweet").blockingHandler(this::retweet);
+    router.route(HttpMethod.POST, "/retweet").blockingHandler(this::retweetBestTweets);
+    router.route(HttpMethod.POST, "/follow").blockingHandler(this::followBestUsers);
+    
 
   }
 
@@ -82,6 +89,7 @@ public class DeployServer extends AbstractVerticle {
    * @param routingContext
    */
   public void searchTweets(RoutingContext routingContext) {
+    this. enableCors(routingContext.response());
     String response;
     try {
     String search_term = (routingContext.request().getParam("search_term") == null) ? "cat" : routingContext.request().getParam("search_term");
@@ -129,14 +137,31 @@ public class DeployServer extends AbstractVerticle {
   /*
    * retweet route
    */
-  public void retweet(RoutingContext routingContext){
+  public void retweetBestTweets(RoutingContext routingContext){
     String response;
     try {
       String search_term = (routingContext.request().getParam("search_term") == null) ? "cat": routingContext.request().getParam("search_term");
       ArrayList<Map<String, Object>> tweetList = this.getTweetsList(this.getTwitterInstance(), search_term);
       ArrayList<Map<String, Object>> besttweets = this.bestTweetsProcessing(tweetList);
-      Map<String, Object> retweet_response = this.retweetProcess(this.getTwitterInstance(), besttweets);
+      Map<String, Object> retweet_response = this.retweetProcess(this.getTwitterInstance(), besttweets, this.retweet_total);
       response = new ObjectMapper().writeValueAsString(retweet_response);
+    } catch (Exception ex) {
+      response = "{status: 'error', 'msg' : " + ex.getMessage() + "}";
+    }
+    routingContext.response().end(response);
+  }
+  /**
+   * use for route to follow best users 
+   * @param routingContext
+   */
+  public void followBestUsers(RoutingContext routingContext){
+    String response;
+    try {
+    String search_term = (routingContext.request().getParam("search_term") == null) ? "cat": routingContext.request().getParam("search_term");
+    ArrayList<Map<String, Object>> tweetList = this.getTweetsList(this.getTwitterInstance(), search_term);
+    ArrayList<Map<String, Object>> best_users = this.bestUserProcessing(tweetList);
+    ArrayList<Map<String,Object>> followers_response = this.followUsers(this.getTwitterInstance(), best_users, followers_total);
+    response = new ObjectMapper().writeValueAsString(followers_response);
     } catch (Exception ex) {
       response = "{status: 'error', 'msg' : " + ex.getMessage() + "}";
     }
@@ -178,10 +203,17 @@ public class DeployServer extends AbstractVerticle {
     Collections.sort(tweetList, mapComparator);
     return tweetList;
   }
-  public Map<String, Object> retweetProcess(Twitter twitter, ArrayList<Map<String, Object>> besttweets){
-     Map<String, Object> response = twiiter4jApi.retweet(twitter, besttweets);
+  public Map<String, Object> retweetProcess(Twitter twitter, ArrayList<Map<String, Object>> besttweets, int retweet_total){
+     Map<String, Object> response = twiiter4jApi.retweet(twitter, besttweets, retweet_total);
      return response;
   }
+  
+  public ArrayList<Map<String,Object>> followUsers(Twitter twitter, ArrayList<Map<String, Object>> users, int followers_total) throws TwitterException{
+    ArrayList<Map<String,Object>> response = twiiter4jApi.followBestUsers(twitter, users,followers_total);
+    return response;
+  }
+  
+  
 
   /**
    * use to sort users according their followes
@@ -220,6 +252,18 @@ public class DeployServer extends AbstractVerticle {
       return Integer.compare(Integer.parseInt(m2.get("retweeted_count").toString()), Integer.parseInt(m1.get("retweeted_count").toString()));
     }
   };
+  /**
+   * use to enable the cors
+   * @param response
+   */
+  public void enableCors(HttpServerResponse response) {
+      response.putHeader("content-type", "text/plain");
+      response.putHeader("Access-Control-Allow-Origin", "*");
+      response.putHeader("Access-Control-Allow-Methods",
+              "GET, POST, OPTIONS");
+      response.putHeader("Access-Control-Allow-Headers",
+              "Content-Type, Authorization");
+  }
 
   /**
    * use to get twitter instance
