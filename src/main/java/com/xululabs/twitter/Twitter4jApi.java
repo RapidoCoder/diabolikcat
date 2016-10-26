@@ -51,5 +51,30 @@ public class Twitter4jApi {
     twitter = null;
     return tweetsList;
   }
+  /**
+   * use to retweet best tweets using twitter api
+   * @param twitter
+   * @param tweets
+   * @return map of retweeted and already retweeted tweets
+   */
+  public Map<String, Object> retweet(Twitter twitter, ArrayList<Map<String, Object>> tweets) {
+    ArrayList<Map<String, Object>> retweet_tweets = new ArrayList<Map<String, Object>>();
+    ArrayList<Map<String, Object>>  retweeted_tweets= new ArrayList<Map<String, Object>>();
+    Map<String, Object> response = new  HashMap<String, Object>();
+    for(Map<String, Object> tweet : tweets){
+        try{
+          twitter.retweetStatus(Long.parseLong(tweet.get("tweet_id").toString()));  
+          retweet_tweets.add(tweet);
+          
+        }catch(Exception ex){
+        retweeted_tweets.add(tweet);
+        }
+    }
+    response.put("retweets", retweet_tweets);
+    response.put("already_retweeted", retweeted_tweets);
+    twitter = null;
+    return response;
+    
+  }
 
 }

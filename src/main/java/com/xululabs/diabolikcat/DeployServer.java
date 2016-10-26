@@ -8,12 +8,10 @@ import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.CorsHandler;
 
-import java.awt.List;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -65,6 +63,7 @@ public class DeployServer extends AbstractVerticle {
     router.route(HttpMethod.POST, "/searchTweets").blockingHandler(this::searchTweets);
     router.route(HttpMethod.POST, "/bestUsers").blockingHandler(this::bestUsers);
     router.route(HttpMethod.POST, "/bestTweets").blockingHandler(this::bestTweets);
+    router.route(HttpMethod.POST, "/retweet").blockingHandler(this::retweet);
 
   }
 
@@ -111,7 +110,10 @@ public class DeployServer extends AbstractVerticle {
     }
     routingContext.response().end(response);
   }
-
+/**
+ * route for best tweets
+ * @param routingContext
+ */
   public void bestTweets(RoutingContext routingContext) {
     String response;
     try {
@@ -121,6 +123,22 @@ public class DeployServer extends AbstractVerticle {
     response = new ObjectMapper().writeValueAsString(besttweets);
     } catch (Exception ex) {
     response = "{status: 'error', 'msg' : " + ex.getMessage() + "}";
+    }
+    routingContext.response().end(response);
+  }
+  /*
+   * retweet route
+   */
+  public void retweet(RoutingContext routingContext){
+    String response;
+    try {
+      String search_term = (routingContext.request().getParam("search_term") == null) ? "cat": routingContext.request().getParam("search_term");
+      ArrayList<Map<String, Object>> tweetList = this.getTweetsList(this.getTwitterInstance(), search_term);
+      ArrayList<Map<String, Object>> besttweets = this.bestTweetsProcessing(tweetList);
+      Map<String, Object> retweet_response = this.retweetProcess(this.getTwitterInstance(), besttweets);
+      response = new ObjectMapper().writeValueAsString(retweet_response);
+    } catch (Exception ex) {
+      response = "{status: 'error', 'msg' : " + ex.getMessage() + "}";
     }
     routingContext.response().end(response);
   }
@@ -159,6 +177,10 @@ public class DeployServer extends AbstractVerticle {
       ArrayList<Map<String, Object>> tweetList) {
     Collections.sort(tweetList, mapComparator);
     return tweetList;
+  }
+  public Map<String, Object> retweetProcess(Twitter twitter, ArrayList<Map<String, Object>> besttweets){
+     Map<String, Object> response = twiiter4jApi.retweet(twitter, besttweets);
+     return response;
   }
 
   /**
