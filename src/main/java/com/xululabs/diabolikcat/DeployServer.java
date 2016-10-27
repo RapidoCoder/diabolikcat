@@ -37,7 +37,7 @@ public class DeployServer extends AbstractVerticle {
   public DeployServer() {
 
     this.host = "localhost";
-    this.port = 8181;
+    this.port = 8383;
     this.twiiter4jApi = new Twitter4jApi();
     this.retweet_total = 20;
     this.followers_total = 30;
@@ -64,7 +64,7 @@ public class DeployServer extends AbstractVerticle {
    * For Registering different Routes
    */
   public void registerHandlers() {
-    router.route(HttpMethod.POST,"/").blockingHandler(this::welcomeRoute);
+    router.route(HttpMethod.GET,"/").blockingHandler(this::welcomeRoute);
     router.route(HttpMethod.POST,"/searchTweets").blockingHandler(this::searchTweets);
     router.route(HttpMethod.POST, "/bestUsers").blockingHandler(this::bestUsers);
     router.route(HttpMethod.POST, "/bestTweets").blockingHandler(this::bestTweets);
@@ -141,9 +141,10 @@ public class DeployServer extends AbstractVerticle {
     String response;
     try {
       String search_term = (routingContext.request().getParam("search_term") == null) ? "cat": routingContext.request().getParam("search_term");
+      int max_retweets = (routingContext.request().getParam("max_retweets") == null) ? retweet_total: Integer.parseInt(routingContext.request().getParam("max_retweets"));
       ArrayList<Map<String, Object>> tweetList = this.getTweetsList(this.getTwitterInstance(), search_term);
       ArrayList<Map<String, Object>> besttweets = this.bestTweetsProcessing(tweetList);
-      Map<String, Object> retweet_response = this.retweetProcess(this.getTwitterInstance(), besttweets, this.retweet_total);
+      Map<String, Object> retweet_response = this.retweetProcess(this.getTwitterInstance(), besttweets, max_retweets);
       response = new ObjectMapper().writeValueAsString(retweet_response);
     } catch (Exception ex) {
       response = "{status: 'error', 'msg' : " + ex.getMessage() + "}";
@@ -158,9 +159,10 @@ public class DeployServer extends AbstractVerticle {
     String response;
     try {
     String search_term = (routingContext.request().getParam("search_term") == null) ? "cat": routingContext.request().getParam("search_term");
+    int max_followers = (routingContext.request().getParam("max_followers") == null) ? followers_total: Integer.parseInt(routingContext.request().getParam("max_followers"));
     ArrayList<Map<String, Object>> tweetList = this.getTweetsList(this.getTwitterInstance(), search_term);
     ArrayList<Map<String, Object>> best_users = this.bestUserProcessing(tweetList);
-    ArrayList<Map<String,Object>> followers_response = this.followUsers(this.getTwitterInstance(), best_users, followers_total);
+    ArrayList<Map<String,Object>> followers_response = this.followUsers(this.getTwitterInstance(), best_users, max_followers);
     response = new ObjectMapper().writeValueAsString(followers_response);
     } catch (Exception ex) {
       response = "{status: 'error', 'msg' : " + ex.getMessage() + "}";
@@ -190,11 +192,21 @@ public class DeployServer extends AbstractVerticle {
    */
   public ArrayList<Map<String, Object>> bestUserProcessing(ArrayList<Map<String, Object>> tweetsList) {
     Map<String, Integer> users_followers = new HashMap<String, Integer>();
+    Map<String, Object> users = new HashMap<String, Object>();
     for (Map<String, Object> tweet : tweetsList) {
-    if (!users_followers.containsKey(tweet.get("screen_name").toString()))
-      users_followers.put(tweet.get("screen_name").toString(), Integer.parseInt(tweet.get("followers_count").toString()));
+    if (!users_followers.containsKey(tweet.get("screen_name").toString())){
+    users_followers.put(tweet.get("screen_name").toString(), Integer.parseInt(tweet.get("followers_count").toString()));
+    Map<String, Object> user_info = new HashMap<String, Object>();
+    user_info.put("name", tweet.get("name"));
+    user_info.put("screen_name", tweet.get("screen_name"));
+    user_info.put("image", tweet.get("user_image"));
+    user_info.put("followers_count", tweet.get("followers_count"));
+    users.put(tweet.get("screen_name").toString(), user_info);
+   
     }
-    ArrayList<Map<String, Object>> best_users = sortDescFollowers(users_followers);
+     
+    }
+    ArrayList<Map<String, Object>> best_users = sortDescFollowers(users_followers ,users);
     return best_users;
   }
 
@@ -221,7 +233,7 @@ public class DeployServer extends AbstractVerticle {
    * @param unsortMap
    * @return list of sorted users
    */
-  private ArrayList<Map<String, Object>> sortDescFollowers(Map<String, Integer> unsortMap) {
+  private ArrayList<Map<String, Object>> sortDescFollowers(Map<String, Integer> unsortMap,  Map<String, Object> users) {
 
     LinkedList<Entry<String, Integer>> list = new LinkedList<Entry<String, Integer>>(unsortMap.entrySet());
 
@@ -234,11 +246,8 @@ public class DeployServer extends AbstractVerticle {
 
     ArrayList<Map<String, Object>> sortedList = new ArrayList<Map<String, Object>>();
     for (Entry<String, Integer> entry : list) {
-    Map<String, Object> sortedElement = new HashMap<String, Object>();
-    sortedElement.put("screen_name", entry.getKey());
-    sortedElement.put("followers_count", entry.getValue());
+    Map<String, Object> sortedElement = (Map<String, Object>) users.get(entry.getKey()); 
     sortedList.add(sortedElement);
-    // sortedMap.put(entry.getKey(), entry.getValue());
     }
 
     return sortedList;

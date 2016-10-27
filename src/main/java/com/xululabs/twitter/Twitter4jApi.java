@@ -42,6 +42,7 @@ public class Twitter4jApi {
     for (Status status : result.getTweets()) {
     Map<String, Object> tweet = new HashMap<String, Object>();
     tweet.put("screen_name", status.getUser().getScreenName());
+    tweet.put("name", status.getUser().getName());
     tweet.put("text", status.getText());
     tweet.put("retweeted_count", status.getRetweetCount());
     tweet.put("followers_count", status.getUser().getFollowersCount());
